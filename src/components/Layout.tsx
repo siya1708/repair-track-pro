@@ -6,9 +6,9 @@ import { Button } from './ui/button';
 import { 
   User, 
   LogOut, 
-  Settings, 
   Bell 
 } from 'lucide-react';
+import { Smartphone } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +18,10 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, title, showHeader = true }) => {
   const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   if (!showHeader) {
     return <div className="min-h-screen bg-gray-50">{children}</div>;
@@ -30,7 +34,8 @@ const Layout: React.FC<LayoutProps> = ({ children, title, showHeader = true }) =
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex items-center">
+                <Smartphone className="h-8 w-8 text-blue-600 mr-3" />
                 <h1 className="text-xl font-bold text-gray-900">MobileFixer Pro</h1>
               </div>
               {title && (
@@ -52,16 +57,18 @@ const Layout: React.FC<LayoutProps> = ({ children, title, showHeader = true }) =
               {/* User Menu */}
               <div className="flex items-center space-x-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar} />
+                  <AvatarImage src={user?.user_metadata?.avatar_url} />
                   <AvatarFallback>
                     <User className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.user_metadata?.name || user?.email}
+                  </p>
+                  <p className="text-xs text-gray-500">Staff</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={logout}>
+                <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>
