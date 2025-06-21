@@ -17,8 +17,8 @@ const CustomersList: React.FC = () => {
     (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const getCustomerRepairs = (customerId: string) => {
-    return repairs.filter(repair => repair.customerId === customerId);
+  const getCustomerRepairs = (customerPhone: string) => {
+    return repairs.filter(repair => repair.customer_phone === customerPhone);
   };
 
   const formatDate = (date: Date) => {
@@ -29,9 +29,9 @@ const CustomersList: React.FC = () => {
     });
   };
 
-  const getTotalSpent = (customerId: string) => {
-    return getCustomerRepairs(customerId)
-      .reduce((total, repair) => total + repair.billAmount, 0);
+  const getTotalSpent = (customerPhone: string) => {
+    return getCustomerRepairs(customerPhone)
+      .reduce((total, repair) => total + repair.bill_amount, 0);
   };
 
   return (
@@ -63,13 +63,13 @@ const CustomersList: React.FC = () => {
       <div className="grid gap-4">
         {filteredCustomers.length > 0 ? (
           filteredCustomers.map((customer) => {
-            const customerRepairs = getCustomerRepairs(customer.id);
-            const totalSpent = getTotalSpent(customer.id);
+            const customerRepairs = getCustomerRepairs(customer.phone);
+            const totalSpent = getTotalSpent(customer.phone);
             const lastRepair = customerRepairs
-              .sort((a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime())[0];
+              .sort((a, b) => new Date(b.received_date).getTime() - new Date(a.received_date).getTime())[0];
 
             return (
-              <Card key={customer.id} className="hover:shadow-md transition-shadow">
+              <Card key={customer.phone} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex-1">
@@ -96,16 +96,16 @@ const CustomersList: React.FC = () => {
                         </div>
                         <div>
                           <p className="text-gray-500">Total Spent</p>
-                          <p className="font-semibold text-green-600">${totalSpent.toFixed(2)}</p>
+                          <p className="font-semibold text-green-600">₹{totalSpent.toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Customer Since</p>
-                          <p className="font-semibold">{formatDate(customer.createdAt)}</p>
+                          <p className="font-semibold">{formatDate(customer.created_at)}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Last Repair</p>
                           <p className="font-semibold">
-                            {lastRepair ? formatDate(lastRepair.receivedDate) : 'Never'}
+                            {lastRepair ? formatDate(lastRepair.received_date) : 'Never'}
                           </p>
                         </div>
                       </div>
@@ -116,18 +116,20 @@ const CustomersList: React.FC = () => {
                           <h4 className="font-medium text-sm mb-2">Recent Repairs</h4>
                           <div className="space-y-2">
                             {customerRepairs
-                              .sort((a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime())
+                              .sort((a, b) => new Date(b.received_date).getTime() - new Date(a.received_date).getTime())
                               .slice(0, 3)
                               .map((repair) => (
                                 <div key={repair.id} className="flex justify-between items-center text-sm">
                                   <div>
-                                    <span className="font-medium">{repair.phoneModel}</span>
-                                    <span className="text-gray-500 ml-2">{repair.issue}</span>
+                                    <span className="font-medium">{repair.phone_model}</span>
+                                    <span className="text-gray-500 ml-2">
+                                      {repair.issues ? repair.issues.join(', ') : 'No issues listed'}
+                                    </span>
                                   </div>
                                   <div className="text-right">
-                                    <div className="text-green-600 font-medium">${repair.billAmount}</div>
+                                    <div className="text-green-600 font-medium">₹{repair.bill_amount}</div>
                                     <div className="text-gray-500 text-xs">
-                                      {formatDate(repair.receivedDate)}
+                                      {formatDate(repair.received_date)}
                                     </div>
                                   </div>
                                 </div>

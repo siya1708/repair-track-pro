@@ -13,11 +13,11 @@ const RecentActivity: React.FC = () => {
   // Filter repairs based on user role
   const userRepairs = user?.role === 'owner' 
     ? repairs 
-    : repairs.filter(r => r.storeId === user?.storeId);
+    : repairs.filter(r => r.store_id === user?.store_id);
 
   // Get recent repairs (last 5)
   const recentRepairs = userRepairs
-    .sort((a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime())
+    .sort((a, b) => new Date(b.received_date).getTime() - new Date(a.received_date).getTime())
     .slice(0, 5);
 
   const getStatusColor = (status: string) => {
@@ -51,7 +51,7 @@ const RecentActivity: React.FC = () => {
         <div className="space-y-4">
           {recentRepairs.length > 0 ? (
             recentRepairs.map((repair) => {
-              const customer = customers.find(c => c.id === repair.customerId);
+              const customer = customers.find(c => c.phone === repair.customer_phone);
               return (
                 <div key={repair.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
@@ -59,12 +59,12 @@ const RecentActivity: React.FC = () => {
                       <Calendar className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-sm">{repair.phoneModel}</p>
+                      <p className="font-medium text-sm">{repair.phone_model}</p>
                       <p className="text-xs text-gray-600">
-                        {customer?.name} • {repair.issue}
+                        {customer?.name} • {repair.issues ? repair.issues.join(', ') : 'No issues listed'}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {formatDate(repair.receivedDate)}
+                        {formatDate(repair.received_date)}
                       </p>
                     </div>
                   </div>
@@ -73,7 +73,7 @@ const RecentActivity: React.FC = () => {
                       {repair.status.replace('-', ' ')}
                     </Badge>
                     <p className="text-xs text-gray-600 mt-1">
-                      ${repair.billAmount}
+                      ₹{repair.bill_amount}
                     </p>
                   </div>
                 </div>

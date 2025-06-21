@@ -12,11 +12,11 @@ const DashboardStats: React.FC = () => {
   // Filter data based on user role and store access
   const userRepairs = user?.role === 'owner' 
     ? repairs 
-    : repairs.filter(r => r.storeId === user?.storeId);
+    : repairs.filter(r => r.store_id === user?.store_id);
 
   const userInventory = user?.role === 'owner'
     ? inventory
-    : inventory.filter(i => i.storeId === user?.storeId);
+    : inventory.filter(i => i.store_id === user?.store_id);
 
   const stats = [
     {
@@ -29,7 +29,7 @@ const DashboardStats: React.FC = () => {
     },
     {
       title: 'Low Stock Items',
-      value: userInventory.filter(i => i.quantity <= i.reorderLevel).length,
+      value: userInventory.filter(i => i.quantity <= i.reorder_level).length,
       total: userInventory.length,
       icon: Folder,
       color: 'text-red-600',
