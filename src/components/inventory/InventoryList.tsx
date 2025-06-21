@@ -4,14 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Search, Plus, Folder, AlertTriangle, Check, X } from 'lucide-react';
+import EnhancedInventoryForm from './EnhancedInventoryForm';
 import { toast } from '@/hooks/use-toast';
 
 const InventoryList: React.FC = () => {
   const { 
     inventory, 
+    suppliers,
     addInventoryUpdateRequest, 
     approveInventoryRequest, 
     denyInventoryRequest,
@@ -19,19 +22,35 @@ const InventoryList: React.FC = () => {
   } = useData();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [supplierFilter, setSupplierFilter] = useState('all');
+  const [showForm, setShowForm] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState<string | null>(null);
   const [requestData, setRequestData] = useState({ quantity: '', reason: '' });
 
   // Filter inventory based on user role
   const userInventory = user?.role === 'owner' 
     ? inventory 
-    : inventory.filter(i => i.storeId === user?.storeId);
+    : inventory.filter(i => i.store_id === user?.store_id);
 
-  // Filter inventory based on search
-  const filteredInventory = userInventory.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Get unique companies and suppliers for filters
+  const companies = Array.from(new Set(userInventory.map(item => item.mobile_company).filter(Boolean)));
+  const inventorySuppliers = Array.from(new Set(userInventory.map(item => item.supplier_id).filter(Boolean)))
+    .map(id => suppliers.find(s => s.id === id))
+    .filter(Boolean);
+
+  // Filter inventory based on search and filters
+  const filteredInventory = userInventory.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.mobile_company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.spare_part_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.spare_part_model?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCompany = companyFilter === 'all' || item.mobile_company === companyFilter;
+    const matchesSupplier = supplierFilter === 'all' || item.supplier_id === supplierFilter;
+    
+    return matchesSearch && matchesCompany && matchesSupplier;
+  });
 
   const handleUpdateRequest = (itemId: string) => {
     if (!requestData.quantity || !requestData.reason) {
@@ -54,11 +73,11 @@ const InventoryList: React.FC = () => {
     }
 
     addInventoryUpdateRequest(itemId, {
-      requestedBy: user!.id,
-      quantityChange,
+      requested_by: user!.id,
+      quantity_change: quantityChange,
       reason: requestData.reason,
       status: 'pending',
-      requestedAt: new Date()
+      requested_at: new Date()
     });
 
     toast({
@@ -84,7 +103,7 @@ const InventoryList: React.FC = () => {
   };
 
   const pendingRequests = userInventory.flatMap(item => 
-    item.requestedUpdates
+    item.requested_updates
       .filter(req => req.status === 'pending')
       .map(req => ({ ...req, itemName: item.name, itemId: item.id }))
   );
@@ -94,24 +113,60 @@ const InventoryList: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Inventory Management</h2>
-        {user?.role === 'owner' && pendingRequests.length > 0 && (
-          <Badge variant="destructive" className="text-sm">
-            {pendingRequests.length} Pending Requests
-          </Badge>
-        )}
+        <div className="flex gap-2">
+          {user?.role === 'owner' && pendingRequests.length > 0 && (
+            <Badge variant="destructive" className="text-sm">
+              {pendingRequests.length} Pending Requests
+            </Badge>
+          )}
+          <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
-      {/* Search */}
+      {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search inventory items..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search inventory items..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by company" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Companies</SelectItem>
+                {companies.map(company => (
+                  <SelectItem key={company} value={company!}>
+                    {company}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by supplier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Suppliers</SelectItem>
+                {inventorySuppliers.map(supplier => (
+                  <SelectItem key={supplier!.id} value={supplier!.id}>
+                    {supplier!.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -132,7 +187,7 @@ const InventoryList: React.FC = () => {
                   <div>
                     <p className="font-medium">{request.itemName}</p>
                     <p className="text-sm text-gray-600">
-                      {request.quantityChange > 0 ? 'Add' : 'Remove'} {Math.abs(request.quantityChange)} units
+                      {request.quantity_change > 0 ? 'Add' : 'Remove'} {Math.abs(request.quantity_change)} units
                     </p>
                     <p className="text-sm text-gray-500">Reason: {request.reason}</p>
                   </div>
@@ -165,8 +220,9 @@ const InventoryList: React.FC = () => {
       <div className="grid gap-4">
         {filteredInventory.length > 0 ? (
           filteredInventory.map((item) => {
-            const isLowStock = item.quantity <= item.reorderLevel;
-            const hasPendingRequest = item.requestedUpdates.some(req => req.status === 'pending');
+            const isLowStock = item.quantity <= item.reorder_level;
+            const hasPendingRequest = item.requested_updates.some(req => req.status === 'pending');
+            const supplier = suppliers.find(s => s.id === item.supplier_id);
             
             return (
               <Card key={item.id} className={`hover:shadow-md transition-shadow ${isLowStock ? 'border-red-200' : ''}`}>
@@ -176,7 +232,12 @@ const InventoryList: React.FC = () => {
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <h3 className="font-semibold text-lg">{item.name}</h3>
-                          <p className="text-gray-600">{item.category}</p>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <p><strong>Company:</strong> {item.mobile_company}</p>
+                            <p><strong>Part Type:</strong> {item.spare_part_type}</p>
+                            <p><strong>Model:</strong> {item.spare_part_model}</p>
+                            {supplier && <p><strong>Supplier:</strong> {supplier.name}</p>}
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-2xl font-bold">{item.quantity}</p>
@@ -184,27 +245,47 @@ const InventoryList: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-green-600 font-medium">
-                          ${item.price.toFixed(2)}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          isLowStock 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {isLowStock ? 'Low Stock' : 'In Stock'}
-                        </span>
-                        {hasPendingRequest && (
-                          <Badge variant="outline" className="text-orange-600">
-                            Request Pending
-                          </Badge>
-                        )}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-4 text-sm">
+                          {/* Only show retail price to staff, all prices to owners */}
+                          {user?.role === 'owner' ? (
+                            <>
+                              <span className="text-blue-600 font-medium">
+                                Buy: ₹{item.buy_price.toFixed(2)}
+                              </span>
+                              <span className="text-purple-600 font-medium">
+                                Wholesale: ₹{item.wholesale_price.toFixed(2)}
+                              </span>
+                              <span className="text-green-600 font-medium">
+                                Retail: ₹{item.retail_price.toFixed(2)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-green-600 font-medium">
+                              Retail: ₹{item.retail_price.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            isLowStock 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {isLowStock ? 'Low Stock' : 'In Stock'}
+                          </span>
+                          {hasPendingRequest && (
+                            <Badge variant="outline" className="text-orange-600">
+                              Request Pending
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <p className="text-sm text-gray-600">
+                          Reorder Level: {item.reorder_level} units
+                        </p>
                       </div>
-                      
-                      <p className="text-sm text-gray-600 mt-2">
-                        Reorder Level: {item.reorderLevel} units
-                      </p>
                     </div>
 
                     <div className="flex flex-col gap-2 lg:w-48">
@@ -288,8 +369,8 @@ const InventoryList: React.FC = () => {
               <Folder className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No inventory items found</h3>
               <p className="text-gray-600">
-                {searchTerm 
-                  ? 'Try adjusting your search terms'
+                {searchTerm || companyFilter !== 'all' || supplierFilter !== 'all'
+                  ? 'Try adjusting your search or filters'
                   : 'Get started by adding your first inventory item'
                 }
               </p>
@@ -297,6 +378,11 @@ const InventoryList: React.FC = () => {
           </Card>
         )}
       </div>
+
+      {/* Inventory Form Modal */}
+      {showForm && (
+        <EnhancedInventoryForm onClose={() => setShowForm(false)} />
+      )}
     </div>
   );
 };

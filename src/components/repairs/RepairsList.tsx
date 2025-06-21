@@ -7,7 +7,7 @@ import { Input } from '../ui/input';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Search, Plus, Calendar, User } from 'lucide-react';
-import RepairForm from './RepairForm';
+import EnhancedRepairForm from './EnhancedRepairForm';
 
 const RepairsList: React.FC = () => {
   const { repairs, customers, updateRepairStatus } = useData();
@@ -19,15 +19,16 @@ const RepairsList: React.FC = () => {
   // Filter repairs based on user role
   const userRepairs = user?.role === 'owner' 
     ? repairs 
-    : repairs.filter(r => r.storeId === user?.storeId);
+    : repairs.filter(r => r.store_id === user?.store_id);
 
   // Filter repairs based on search and status
   const filteredRepairs = userRepairs.filter(repair => {
-    const customer = customers.find(c => c.id === repair.customerId);
-    const matchesSearch = repair.phoneModel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const customer = customers.find(c => c.phone === repair.customer_phone);
+    const matchesSearch = repair.phone_model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         repair.issue.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === 'all' || repair.status === selectedStatus;
+                         repair.issues?.some(issue => issue.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         repair.phone_company?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === 'all' || repair.order_status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -35,8 +36,9 @@ const RepairsList: React.FC = () => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'in-progress': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-green-100 text-green-800';
+      case 'repaired': return 'bg-green-100 text-green-800';
       case 'delivered': return 'bg-gray-100 text-gray-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -53,7 +55,7 @@ const RepairsList: React.FC = () => {
     });
   };
 
-  const statusOptions = ['all', 'pending', 'in-progress', 'completed', 'delivered'];
+  const statusOptions = ['all', 'pending', 'in-progress', 'repaired', 'delivered', 'cancelled'];
 
   return (
     <div className="space-y-4">
@@ -102,7 +104,7 @@ const RepairsList: React.FC = () => {
       <div className="grid gap-4">
         {filteredRepairs.length > 0 ? (
           filteredRepairs.map((repair) => {
-            const customer = customers.find(c => c.id === repair.customerId);
+            const customer = customers.find(c => c.phone === repair.customer_phone);
             return (
               <Card key={repair.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
@@ -110,30 +112,42 @@ const RepairsList: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <h3 className="font-semibold text-lg">{repair.phoneModel}</h3>
+                          <h3 className="font-semibold text-lg">
+                            {repair.phone_company} {repair.phone_model}
+                          </h3>
                           <p className="text-gray-600 flex items-center gap-1">
                             <User className="h-4 w-4" />
                             {customer?.name} • {customer?.phone}
                           </p>
+                          {repair.imei && (
+                            <p className="text-sm text-gray-500">IMEI: {repair.imei}</p>
+                          )}
                         </div>
-                        <Badge className={getStatusColor(repair.status)}>
-                          {repair.status.replace('-', ' ')}
+                        <Badge className={getStatusColor(repair.order_status)}>
+                          {repair.order_status.replace('-', ' ')}
                         </Badge>
                       </div>
                       
                       <div className="space-y-2">
-                        <p className="text-sm"><strong>Issue:</strong> {repair.issue}</p>
+                        <div>
+                          <strong>Issues:</strong>
+                          <ul className="list-disc list-inside ml-2">
+                            {repair.issues?.map((issue, index) => (
+                              <li key={index} className="text-sm">{issue}</li>
+                            ))}
+                          </ul>
+                        </div>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
-                            Received: {formatDate(repair.receivedDate)}
+                            Received: {formatDate(repair.received_date)}
                           </span>
-                          {repair.estimatedCompletion && (
-                            <span>Est. Completion: {formatDate(repair.estimatedCompletion)}</span>
+                          {repair.estimated_completion && (
+                            <span>Est. Completion: {formatDate(repair.estimated_completion)}</span>
                           )}
                         </div>
                         <p className="text-lg font-semibold text-green-600">
-                          ${repair.billAmount.toFixed(2)}
+                          ₹{repair.bill_amount.toFixed(2)}
                         </p>
                         {repair.notes && (
                           <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
@@ -144,7 +158,7 @@ const RepairsList: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col gap-2 lg:w-48">
-                      {repair.status === 'pending' && (
+                      {repair.order_status === 'pending' && (
                         <Button 
                           size="sm" 
                           onClick={() => handleStatusUpdate(repair.id, 'in-progress')}
@@ -153,17 +167,17 @@ const RepairsList: React.FC = () => {
                           Start Repair
                         </Button>
                       )}
-                      {repair.status === 'in-progress' && (
+                      {repair.order_status === 'in-progress' && (
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => handleStatusUpdate(repair.id, 'completed')}
                           className="w-full"
                         >
-                          Mark Complete
+                          Mark Repaired
                         </Button>
                       )}
-                      {repair.status === 'completed' && (
+                      {repair.order_status === 'repaired' && (
                         <Button 
                           size="sm" 
                           variant="default"
@@ -203,7 +217,7 @@ const RepairsList: React.FC = () => {
 
       {/* Repair Form Modal */}
       {showForm && (
-        <RepairForm onClose={() => setShowForm(false)} />
+        <EnhancedRepairForm onClose={() => setShowForm(false)} />
       )}
     </div>
   );
