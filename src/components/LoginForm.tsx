@@ -24,7 +24,7 @@ const LoginForm: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await login(email);
+      await login(email, 'password'); // Provide a default password for demo purposes
       toast({
         title: "Welcome!",
         description: "Successfully logged in to MobileFixer Pro"
